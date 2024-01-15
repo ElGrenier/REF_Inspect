@@ -7,6 +7,7 @@ Output from this script is listed in the debug console.
 
 ## How to Use
 
-1. Install [REFramework](https://github.com/praydog/REFramework) for your game of choice. 
-2. Launch the game and at any time, in the REFramework window, go to the "ScriptRunner" tab and click the "Spawn Debug Console" button to open the debug console.
-3. In that same "ScriptRunner" tab, click the "Run script" button and navigate to the location of the Inspect.lua script.
+1. Clone this repo or download it as a zip. If you downloaded as a zip, extract it somewhere.
+2. Install [REFramework](https://github.com/praydog/REFramework) for your game of choice. 
+3. Launch the game and at any time, in the REFramework window, go to the "ScriptRunner" tab and click the "Spawn Debug Console" button to open the debug console.
+4. In that same "ScriptRunner" tab, click the "Run script" button and navigate to the location from step 1, and choose the Inspect.lua script.
