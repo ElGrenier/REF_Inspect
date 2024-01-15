@@ -111,11 +111,11 @@ function Inspect.Log(message, value)
     end
 
     if not value then
-        log.debug("| Inspect.lua | " .. tostring(message))
+        log.debug("| REF_Inspect | " .. tostring(message))
         return
     end
 
-    log.debug("| Inspect.lua | " .. tostring(message) .. ": " .. tostring(value))
+    log.debug("| REF_Inspect | " .. tostring(message) .. ": " .. tostring(value))
 end
 
 function Inspect._Setup()
