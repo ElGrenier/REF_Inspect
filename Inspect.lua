@@ -1,9 +1,3 @@
--- This script doesn't work at all on RE7. This will be helpful for someone later, though:
--- - SaveMenuInteract (found in children of VoiceRecorder object) 
---   -> app.InteractSendFsm (component) -> FsmExecute() on app.InteractObjectBase (might not work, not tested)
---   (also found the above on doors and memos)
---
-
 -- This script doesn't work at all on RE8 (Village). This will be helpful for someone later, though: 
 -- - https://cdn.discordapp.com/attachments/925838720534446100/1091125439537348628/image.png?ex=65a9a4c0&is=65972fc0&hm=fc9697872bbd65587bd4bb5d148509a497132201128a8176c16cb008511db2dc&
 -- - https://cdn.discordapp.com/attachments/925838720534446100/1092203626568613898/image.png?ex=65ad90e4&is=659b1be4&hm=69b6ab91e182c81d6ab45b60afe89672e1423c479c87e780d93dceddbaa8491a&
@@ -25,6 +19,8 @@
 --
 
 local Inspect = {}
+Inspect.currentMapID = nil -- only used by RE2R and RE3R currently
+
 local InspectItem = {}
 local InspectPlayer = {}
 local InspectTypewriter = {}
@@ -39,7 +35,15 @@ function InspectItem.GetParentName(gameObject)
 
     if transform_parent then
         local gameobject_parent = sdk.to_managed_object(transform_parent:call('get_GameObject()'))
-        local comp_item_positions = gameobject_parent:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("item.ItemPositions")))
+        local comp_item_positions = nil
+        
+        if game == "RE2R" or game == "RE3R" then
+            comp_item_positions = gameobject_parent:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("item.ItemPositions")))
+        end
+
+        if game == "RE7" then
+            comp_item_positions = gameobject_parent:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("Item")))
+        end
 
         -- only return the parent name if it's an item; otherwise, we don't care
         if comp_item_positions then
@@ -63,8 +67,19 @@ function InspectItem.GetFolderPath(gameObject)
 end
 
 function InspectPlayer.GetPosition()
-    local player_manager = sdk.get_managed_singleton(sdk.game_namespace("PlayerManager"))
-    local player_position = player_manager:call("get_CurrentPosition()")
+    local player_position = nil
+
+    if game == "RE2R" or game == "RE3R" then
+        local player_manager = sdk.get_managed_singleton(sdk.game_namespace("PlayerManager"))
+        player_position = player_manager:call("get_CurrentPosition()")
+    end
+
+    if game == "RE7" then
+        local player_object = player.gameobj -- apparently REF defines this?
+        local player_transform = player_object:call("get_Transform")
+        player_position = player_transform:call("get_Position")
+    end
+
     local x = Inspect._Round(player_position.x)
     local y = Inspect._Round(player_position.y)
     local z = Inspect._Round(player_position.z)
@@ -84,24 +99,70 @@ function InspectTypewriter.IsTypewriter(gameObject)
     local gameobject_name = InspectItem.GetName(gameObject)
     local gameobject_parent = InspectItem.GetParentName(gameObject)
 
-    if gameobject_parent and string.match(gameobject_name, "Typewriter") then
-        return true
+    if game == "RE2R" or game == "RE3R" then
+        if string.match(gameobject_name, "Typewriter") then
+            return true
+        end
+    end
+
+    if game == "RE7" then
+        if string.match(gameobject_name, "SaveMenuInteract") then
+            return true
+        end
     end
 
     return false
 end
 
 function InspectTypewriter.GetLocationId(gameObject)
-    local comp_gimmick_control = gameObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("gimmick.action.GimmickControl")))
-    
-    return comp_gimmick_control:call("get_MyLocation()")
+    if game == "RE2R" or game == "RE3R" then
+        local comp_gimmick_control = gameObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("gimmick.action.GimmickControl")))
+        
+        return comp_gimmick_control:call("get_MyLocation()")
+    end
+
+    if game == "RE7" then
+        local comp_interact_base = gameObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("InteractObjectBase")))
+        local search_object = comp_interact_base:get_field("_SearchObject")
+        local comp_map_object = search_object:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("MapObject")))
+        local map_data = comp_map_object:get_field("Data")
+
+        return map_data:get_field("Chapter")
+    end
+
+    return nil
 end
 
 function InspectTypewriter.GetMapId(gameObject)
-    local comp_gimmick_control = gameObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("gimmick.action.GimmickControl")))
-    local comp_gimmick_body = comp_gimmick_control:call("get_MyGimmickBody()")
-    
-    return comp_gimmick_body:get_field("AssignMapID")
+    if game == "RE2R" or game == "RE3R" then
+        local comp_gimmick_control = gameObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("gimmick.action.GimmickControl")))
+        local comp_gimmick_body = comp_gimmick_control:call("get_MyGimmickBody()")
+        
+        return comp_gimmick_body:get_field("AssignMapID")
+    end
+
+    if game == "RE7" then
+        local comp_interact_base = gameObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("InteractObjectBase")))
+        local search_object = comp_interact_base:get_field("_SearchObject")
+        local comp_map_object = search_object:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("MapObject")))
+        local map_data = comp_map_object:get_field("Data")
+
+        return map_data:get_field("RoomID")
+    end
+
+    return nil
+end
+
+function Inspect.GetGameByNamespace()
+    local namespace_name = sdk.game_namespace("")
+
+    if namespace_name == "app.ropeway." then return "RE2R" end
+    if namespace_name == "offline." then return "RE3R" end -- what a stupid namespace name
+    if namespace_name == "app." then return "RE7" end
+    -- TODO: add RE8
+    -- TODO: add RE4R
+
+    return nil
 end
 
 function Inspect.Log(message, value)
@@ -123,30 +184,79 @@ function Inspect._Setup()
 end
 
 function Inspect._SetupHook()
-    local interactType = sdk.find_type_definition(sdk.game_namespace("gimmick.action.FeedbackFSM"))
-    local interact_method = interactType:get_method("execute")
+    if game == "RE2R" or game == "RE3R" then
+        -- main interactions hook
+        local interactType = sdk.find_type_definition(sdk.game_namespace("gimmick.action.FeedbackFSM"))
 
-    sdk.hook(interact_method, function(args)
-        local compFeedbackFSM = sdk.to_managed_object(args[2])
-        local parentOfComponent = sdk.to_managed_object(compFeedbackFSM:get_field('_Owner'))
+        if interactType then
+            local interact_method = interactType:get_method("execute")
 
-        Inspect.Log() -- intentional line break
-        Inspect.Log("Item Object", InspectItem.GetName(parentOfComponent))
-        Inspect.Log("Parent Object", InspectItem.GetParentName(parentOfComponent))
-        Inspect.Log("Folder Path", InspectItem.GetFolderPath(parentOfComponent))
-        Inspect.Log("Player Position", InspectPlayer.GetPositionString())
+            sdk.hook(interact_method, function(args)
+                local compFeedbackFSM = sdk.to_managed_object(args[2])
+                local parentOfComponent = sdk.to_managed_object(compFeedbackFSM:get_field('_Owner'))
 
-        if InspectTypewriter.IsTypewriter(parentOfComponent) then
-            Inspect.Log("Typewriter Location ID", InspectTypewriter.GetLocationId(parentOfComponent))
-            Inspect.Log("Typewriter Map ID", InspectTypewriter.GetMapId(parentOfComponent))
+                Inspect.Log() -- intentional line break
+                Inspect.Log("Item Object", InspectItem.GetName(parentOfComponent))
+                Inspect.Log("Parent Object", InspectItem.GetParentName(parentOfComponent))
+                Inspect.Log("Folder Path", InspectItem.GetFolderPath(parentOfComponent))
+                Inspect.Log("Player Position", InspectPlayer.GetPositionString())
+
+                if InspectTypewriter.IsTypewriter(parentOfComponent) then
+                    Inspect.Log("Typewriter Location ID", InspectTypewriter.GetLocationId(parentOfComponent))
+                    Inspect.Log("Typewriter Map ID", InspectTypewriter.GetMapId(parentOfComponent))
+                end
+            end)
         end
-    end)
+
+        -- map switching (i.e., room switching) hook
+        local interactType = sdk.find_type_definition(sdk.game_namespace("EnvironmentStandbyManager"))
+
+        if interactType then
+            local interact_method = interactType:get_method("getStandbyController")
+
+            sdk.hook(interact_method, function(args)
+                local compEnvStandby = sdk.to_managed_object(args[2])
+                local currentMapID = compEnvStandby:call("get_CurrentMap")
+
+                if currentMapID ~= Inspect.currentMapID then
+                    Inspect.currentMapID = currentMapID
+                    Inspect.Log("Current Map ID", currentMapID)
+                end
+            end)
+        end
+    end
+
+    if game == "RE7" then
+        local interactType = sdk.find_type_definition(sdk.game_namespace("InteractObjectBase"))
+
+        if interactType then
+            local interact_method = interactType:get_method("FsmExecute")
+
+            sdk.hook(interact_method, function(args)
+                local compFeedbackFSM = sdk.to_managed_object(args[2])
+                local parentOfComponent = sdk.to_managed_object(compFeedbackFSM:call("get_GameObject"))
+
+                Inspect.Log() -- intentional line break
+                Inspect.Log("Item Object", InspectItem.GetName(parentOfComponent))
+                Inspect.Log("Parent Object", InspectItem.GetParentName(parentOfComponent))
+                Inspect.Log("Folder Path", InspectItem.GetFolderPath(parentOfComponent))
+                Inspect.Log("Player Position", InspectPlayer.GetPositionString())
+
+                if InspectTypewriter.IsTypewriter(parentOfComponent) then
+                    Inspect.Log("Recorder Location ID", InspectTypewriter.GetLocationId(parentOfComponent))
+                    Inspect.Log("Recorder Map ID", InspectTypewriter.GetMapId(parentOfComponent))
+                end
+            end)
+        end
+    end
 end
 
 function Inspect._Round(number)
     return math.ceil(number * 100) / 100 -- two decimal places
 end
 
+-- this gets used a lot, so just define it outside the function scopes
+game = Inspect.GetGameByNamespace()
 
 -- run all the setup once
 re.on_pre_application_entry("UpdateBehavior", function()
@@ -158,3 +268,7 @@ re.on_pre_application_entry("UpdateBehavior", function()
 end)
 
 Inspect.Log("Script loaded!")
+
+if game ~= nil then
+    Inspect.Log("Game identified as " .. tostring(game) .. ".")
+end
