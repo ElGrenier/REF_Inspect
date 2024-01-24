@@ -158,9 +158,15 @@ function Inspect.GetGameByNamespace()
 
     if namespace_name == "app.ropeway." then return "RE2R" end
     if namespace_name == "offline." then return "RE3R" end -- what a stupid namespace name
-    if namespace_name == "app." then return "RE7" end
-    -- TODO: add RE8
-    -- TODO: add RE4R
+    if namespace_name == "app." then
+        -- this is a silly way to tell the difference between RE7 and RE8
+        if player.gameobj:get_Name() == "Pl1000" then 
+            return "RE7"
+        else -- player.gameobj:get_Name() == "pl1000"
+            return "RE8" 
+        end
+    end
+    if namespace_name == "chainsaw." then return "RE4R" end -- awesome namespace name
 
     return nil
 end
