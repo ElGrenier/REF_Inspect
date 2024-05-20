@@ -74,7 +74,7 @@ function InspectPlayer.GetPosition()
         player_position = player_manager:call("get_CurrentPosition()")
     end
 
-    if game == "RE7" then
+    if game == "RE7" or game == "RE8" then
         local player_object = player.gameobj -- apparently REF defines this?
         local player_transform = player_object:call("get_Transform")
         player_position = player_transform:call("get_Position")
@@ -111,6 +111,12 @@ function InspectTypewriter.IsTypewriter(gameObject)
         end
     end
 
+    if game == "RE8" then
+        if string.match(gameobject_name, "InteractManualSave") then
+            return true
+        end
+    end
+
     return false
 end
 
@@ -128,6 +134,14 @@ function InspectTypewriter.GetLocationId(gameObject)
         local map_data = comp_map_object:get_field("Data")
 
         return map_data:get_field("Chapter")
+    end
+
+    if game == "RE8" then
+        local systemObject = scene:call("findGameObject(System.String)", "SystemObject")
+        local mapManagerComp = systemObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("MapManager")))
+        local mapInfo = mapManagerComp:get_field("<currentRoomUnit>k__BackingField")
+
+        return mapInfo:get_field("ZoneID")
     end
 
     return nil
@@ -156,7 +170,29 @@ function InspectTypewriter.GetMapId(gameObject)
         return map_data:get_field("RoomID")
     end
 
+    if game == "RE8" then
+        local systemObject = scene:call("findGameObject(System.String)", "SystemObject")
+        local mapManagerComp = systemObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("MapManager")))
+        local mapInfo = mapManagerComp:get_field("<currentRoomUnit>k__BackingField")
+
+        return mapInfo:get_field("MapID")
+    end
+
     return nil
+end
+
+function Inspect.GetGameByGameName()
+    local gameName = reframework:get_game_name()
+
+    if not gameName then
+        return nil
+    end
+
+    if gameName == "re2" or gameName == "re3" or gameName == "re4" then
+        gameName = gameName .. "r" -- add the "remake" on the end
+    end
+
+    return string.upper(gameName)
 end
 
 function Inspect.GetGameByNamespace()
@@ -261,6 +297,48 @@ function Inspect._SetupHook()
             end)
         end
     end
+
+    if game == "RE8" then
+        local interactType = sdk.find_type_definition(sdk.game_namespace("InteractBase"))
+
+        if interactType then
+            local interact_method = interactType:get_method("SuccessInteract")
+
+            sdk.hook(interact_method, function(args)
+                local interactBasic = sdk.to_managed_object(args[2])
+                local interactItemGet = interactBasic:get_field("ParentObject")
+                local interactItemGetComp = interactItemGet:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("InteractItemGet")))
+
+                -- if it's not an item to get, just have it display information for the first object instead
+                local itemObject = interactItemGet
+
+                -- if it is an item to get, have it find the actual item object and use that
+                if interactItemGetComp ~= nil then
+                     itemObject = interactItemGetComp:get_field("ItemSetGameObject")
+                end
+
+                local itemObjectTransform = itemObject:call("get_Transform")
+
+                -- TODO: move getting transform position (and itemObjectTransform above) into a method for getting position like GetName gets name
+                local universalPosition = itemObjectTransform:call("get_Position")
+                local positionValues = { universalPosition.x, universalPosition.y, universalPosition.z }
+
+                Inspect.Log() -- intentional line break
+                Inspect.Log("Item Object", InspectItem.GetName(itemObject))
+                Inspect.Log("Item Position", "[" .. tostring(table.concat(positionValues, ",")) .. "]")
+                Inspect.Log("Folder Path", InspectItem.GetFolderPath(itemObject))
+                Inspect.Log("Player Position", InspectPlayer.GetPositionString())
+
+                if InspectTypewriter.IsTypewriter(itemObject) then
+                    Inspect.Log("Typewriter Location ID", InspectTypewriter.GetLocationId(itemObject))
+                    Inspect.Log("Typewriter Map ID", InspectTypewriter.GetMapId(itemObject))
+                end
+
+                --local itemObjectConfigureComp = itemObject:call("getComponent(System.Type)", sdk.typeof(sdk.game_namespace("ItemGetConfigure")))
+                --> itemObjectConfigureComp -> <references>k__BackingField -> <itemCore>k__BackingField -> <work>k__BackingField --> ItemID, etc.
+            end)
+        end
+    end
 end
 
 function Inspect._Round(number)
@@ -268,7 +346,12 @@ function Inspect._Round(number)
 end
 
 -- this gets used a lot, so just define it outside the function scopes
-game = Inspect.GetGameByNamespace()
+game = Inspect.GetGameByGameName()
+
+-- had this logic for game by namespace coded, so leaving it in case it's somehow needed
+if game == nil then
+    game = Inspect.GetGameByNamespace()
+end
 
 -- run all the setup once
 re.on_pre_application_entry("UpdateBehavior", function()
