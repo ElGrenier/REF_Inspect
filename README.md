@@ -1,7 +1,7 @@
 # REF_Inspect
 These scripts are REFramework-compatible (REF) scripts for listing important information for use in an Archipelago-compatible (AP) randomizer. There is an RE2R AP randomizer in development currently, and this script functions on RE2R, RE3R, RE7, and RE8 (Village).
 
-Currently, RE4R is not supported, but goal is to get support for each of these as well at some point. There are some notes at the top of the Inspect script on possible leads for adding this support.
+Currently, RE4R is not supported, but goal is to get support for it as well at some point. There are some notes at the top of the Inspect script on possible leads for adding this support.
 
 ## Scripts
 ### Inspect.lua
