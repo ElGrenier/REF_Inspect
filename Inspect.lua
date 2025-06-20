@@ -242,9 +242,16 @@ function Inspect._SetupHook()
             sdk.hook(interact_method, function(args)
                 local compFeedbackFSM = sdk.to_managed_object(args[2])
                 local parentOfComponent = sdk.to_managed_object(compFeedbackFSM:get_field('_Owner'))
+                local transform = parentOfComponent:call("get_Transform()")
+                local pos = transform:call("get_Position")
+                local posX = Inspect._Round(pos.x)
+                local posY = Inspect._Round(pos.y)
+                local posZ = Inspect._Round(pos.z)
+                local posvalue = { posX, posY, posZ }
 
                 Inspect.Log() -- intentional line break
                 Inspect.Log("Item Object", InspectItem.GetName(parentOfComponent))
+                Inspect.Log("Item Position", "[" .. tostring(table.concat(itemPos, ",")) .. "]")
                 Inspect.Log("Parent Object", InspectItem.GetParentName(parentOfComponent))
                 Inspect.Log("Folder Path", InspectItem.GetFolderPath(parentOfComponent))
                 Inspect.Log("Player Position", InspectPlayer.GetPositionString())
